@@ -3,7 +3,7 @@ import websockets
 from utility.logger import Logger
 
 class WsHandler:
-    def __init__(self, on_message: function, on_close: function, logger: Logger):
+    def __init__(self, on_message, on_close, logger: Logger):
         self.__ws: websockets.ClientConnection = None
         self.__on_message = on_message
         self.__on_close = on_close
