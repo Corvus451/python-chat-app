@@ -8,11 +8,15 @@ class WsHandler:
         self.__on_message = on_message
         self.__on_close = on_close
         self.__logger = logger
+        self.__is_connecting: bool = False
 
     def is_connected(self) -> bool:
         return self.__ws and self.__ws.state == websockets.State.OPEN
     
     async def connect(self, address: str):
+        if self.__is_connecting or self.is_connected():
+            return False
+        
         async def receive(ws: websockets.ClientConnection):
 
             try:
