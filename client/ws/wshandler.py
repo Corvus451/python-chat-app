@@ -1,4 +1,5 @@
 import asyncio
+import json
 import websockets
 from utility.logger import Logger
 
@@ -13,7 +14,7 @@ class WsHandler:
     def is_connected(self) -> bool:
         return self.__ws and self.__ws.state == websockets.State.OPEN
     
-    async def connect(self, address: str):
+    async def connect(self, address: str, nickname: str):
         if self.__is_connecting or self.is_connected():
             return False
         
@@ -34,6 +35,13 @@ class WsHandler:
             connection = await websockets.connect(f"ws://{address}")
             self.__ws = connection
             asyncio.create_task(receive(self.__ws))
+
+            connect_msg = json.dumps({
+                "type": "join",
+                "nickname": nickname
+            })
+            await self.__ws.send(connect_msg)
+
             return True
         except Exception as e:
             self.__logger.log(e)
@@ -43,10 +51,16 @@ class WsHandler:
         if self.is_connected():
             await self.__ws.close()
 
+    def __create_message(self, text: str):
+        return json.dumps({
+        "type": "message",
+        "message": text
+    })
+
     async def send_message(self, msg: str):
         if msg and self.is_connected():
             try:
-                await self.__ws.send(msg)
+                await self.__ws.send(self.__create_message(msg))
                 return True
             except Exception as e:
                 self.__logger.log(e)

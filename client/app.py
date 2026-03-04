@@ -28,15 +28,20 @@ class App:
             await self.__ws_handler.disconnect()
             self.__ui.stop()
         elif cmd[0] == "/connect":
-            await self.__ws_handler.connect(cmd[1])
+            await self.__ws_handler.connect(cmd[1], cmd[2])
         elif cmd[0] == "/disconnect":
             await self.__ws_handler.disconnect()
 
     async def input_handler(self, text: str):
         if text.startswith("/"):
             await self.cmd_handler(text)
+        
+        elif self.__ws_handler.is_connected():
+            await self.__ws_handler.send_message(text)
+
         else:
             self.__ui.add_message(text)
+
 
     async def run(self):
         await self.__ui.run()
