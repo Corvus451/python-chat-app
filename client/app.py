@@ -3,15 +3,18 @@ import json
 
 from ws.wshandler import WsHandler
 from ui.ui import UI
+from ui.keybinder import Key_binder
 from utility.logger import Logger
 
 
 class App:
-    def __init__(self, ui: UI, logger: Logger):
-        self.__ws_handler = WsHandler(self.msg_handler, self.close_handler, logger)
-        self.__ui = ui
-        self.__logger = logger
+    def __init__(self):
+        self.__logger = Logger("testlog.txt")
+        self.__ws_handler = WsHandler(self.msg_handler, self.close_handler, self.__logger)
+        self.__ui = UI()
+        self.__key_binder = Key_binder(self.__ui, self.__ws_handler)
 
+        self.__ui.set_keybindings(self.__key_binder.bind_keys())
         self.__ui.set_input_handler(self.input_handler)
 
     def msg_handler(self, msg: str):
@@ -24,11 +27,22 @@ class App:
 
     async def cmd_handler(self, text: str):
         cmd = text.split(" ")
+
         if cmd[0] == "/quit":
             await self.__ws_handler.disconnect()
             self.__ui.stop()
+
         elif cmd[0] == "/connect":
-            await self.__ws_handler.connect(cmd[1], cmd[2])
+            if len(cmd) != 3:
+                self.__ui.add_message("usage: /connect <address> <nickname>")
+                return
+            
+            self.__ui.add_message(f"connecting to {cmd[1]}")
+            success = await self.__ws_handler.connect(cmd[1], cmd[2])
+
+            if not success:
+                self.__ui.add_message("Connection failed")
+
         elif cmd[0] == "/disconnect":
             await self.__ws_handler.disconnect()
 
@@ -48,9 +62,7 @@ class App:
 
 async def main():
     
-    logger = Logger("testlog.txt")
-    ui = UI()
-    app = App(ui, logger)
+    app = App()
     await app.run()
 
 

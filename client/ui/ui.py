@@ -43,22 +43,19 @@ class UI:
                 Frame(self.__input, "Enter command/message")
             ])
         )
-
-        self.__kb = KeyBindings()
-
-        @self.__kb.add('enter')
-        def _(e):
-            text = self.__input.text
-            self.__input.text = ""
-            if text:
-                asyncio.create_task(self.__input_handler(text))
-
-        @self.__kb.add("c-c")
-        def _(e):
-            self.__app.exit()
-
         self.__app.layout = self.__layout
-        self.__app.key_bindings = self.__kb
+
+        # self.__kb = KeyBindings()
+
+        # @self.__kb.add('enter')
+        # def _(e):
+        #     self.on_input()
+
+        # @self.__kb.add("c-c")
+        # def _(e):
+        #     self.__app.exit()
+
+        # self.__app.key_bindings = self.__kb
 
     async def run(self):
         clear()
@@ -71,9 +68,11 @@ class UI:
     def set_input_handler(self, handler):
         self.__input_handler = handler
 
-    def on_input(self, text: str):
-        if self.__input_handler:
-            self.__input_handler(text)
+    def on_input(self):
+        text = self.__input.text
+        self.__input.text = ""
+        if self.__input_handler and text:
+            asyncio.create_task(self.__input_handler(text))
 
     def add_message(self, text: str):
         self.__message_history.append(text)
@@ -81,3 +80,6 @@ class UI:
 
     def set_info(self, text: str):
         self.__info_display.text = text
+
+    def set_keybindings(self, kb: KeyBindings):
+        self.__app.key_bindings = kb
