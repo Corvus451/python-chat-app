@@ -2,13 +2,15 @@ import asyncio
 import json
 import websockets
 from utility.logger import Logger
+from ui.ui import UI
 
 class WsHandler:
-    def __init__(self, on_message, on_close, logger: Logger):
+    def __init__(self, on_message, on_close, logger: Logger, ui: UI):
         self.__ws: websockets.ClientConnection = None
         self.__on_message = on_message
         self.__on_close = on_close
         self.__logger = logger
+        self.__ui = ui
         self.__is_connecting: bool = False
         self.__is_disconnecting: bool = False
 
@@ -41,6 +43,8 @@ class WsHandler:
         try:
             self.__is_connecting = True
 
+            self.__ui.add_message(f"connecting to {address}")
+
             connection = await websockets.connect(f"ws://{address}")
             self.__ws = connection
 
@@ -61,6 +65,7 @@ class WsHandler:
         except Exception as e:
             self.__is_connecting = False
             self.__logger.log(e)
+            self.__ui.add_message("connection failed")
             return False
         
     async def disconnect(self):
