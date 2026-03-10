@@ -1,74 +1,67 @@
-import asyncio
-import websockets
-from websockets.asyncio.server import serve
-from websockets.asyncio.server import ServerConnection
-
 import json
 
-clients: set[websockets.ServerConnection] = set()
+from websockets.asyncio.server import ServerConnection
+from websockets import CloseCode
+from websockets import exceptions
 
-def parse_message(msg: str) -> dict:
-    try:
-        parsed = json.loads(msg)
-        if type(parsed) != dict:
-            return None
-        return parsed
+from ws.ws_handler import Ws_handler
+
+
+class Server:
+    def __init__(self, ws_handler: Ws_handler):
+        self.__ws_handler = ws_handler
+        self.__ws_handler.set_handlers(self.__join_handler, self.__msg_handler, self.__close_handler)
+
+
+    def __parse_message(self, msg: str) -> dict:
+        try:
+            parsed = json.loads(msg)
+            if not isinstance(parsed, dict):
+                return None
+            return parsed
     
-    except:
-        return None
+        except:
+            return None
 
 
-def create_message(message: str) -> str:
-    return json.dumps({
-        "type": "message",
-        "message": message
-    })
-
-async def handler(ws: ServerConnection):
-    print("client connected")
-    try:
-        raw = await ws.recv()
-        parsed = parse_message(raw)
-
-
-        if not parsed:
-            await ws.close(websockets.CloseCode.INVALID_DATA)
-            return
-        
-
-        if not parsed.get("nickname") or not parsed.get("type") == "join":
-            print("client sent invalid connection data")
-            await ws.close(websockets.CloseCode.INVALID_DATA)
-            return
-        
-        ws.nickname = parsed["nickname"]
-        clients.add(ws)
-
-        await ws.send(create_message("Connected succesfully"))
-
-        async for msg in ws:
-            parsed = parse_message(msg)
-
-            if not parsed:
-                await ws.close(websockets.CloseCode.INVALID_DATA)
+    async def __join_handler(self, ws: ServerConnection):
+        try:
+            join_msg = await self.__ws_handler.get_message(ws)
+            join_msg = self.__parse_message(join_msg)
+            if not join_msg:
+                await self.__ws_handler.drop_client(ws, CloseCode.UNSUPPORTED_DATA)
                 return
+            
+            if not join_msg.get("type")  == "join" or not join_msg.get("nickname"):
+                self.__ws_handler.drop_client(ws, CloseCode.INVALID_DATA)
+                return
+            
+            ws.nickname = join_msg["nickname"]
+            self.__ws_handler.add_client(ws)
 
-            if parsed.get("type") == "message":
-                for client in clients:
-                    if client.state == websockets.State.OPEN:
-                        reply = create_message(f"[{ws.nickname}] {parsed.get("message")}")
-                        await client.send(reply)
+            await self.__ws_handler.send_msg(ws, "message", "successfully connected")
 
-    # except websockets.exceptions.ConnectionClosedOK as closeException:
-    #     pass
+            await self.__ws_handler.receive(ws)
+        
+        except Exception as e:
+            print("Exception at Server.__join_handler")
+            print(e)
 
-    finally:
-        print("client disconnected")
-        clients.discard(ws)
+        finally:
+            self.__close_handler(ws)
 
-async def main():
-    async with serve(handler, "localhost", 8765) as server:
-        await server.serve_forever()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    async def __msg_handler(self, ws: ServerConnection, msg: dict):
+        parsed = self.__parse_message(msg)
+        if parsed and parsed.get("type") == "message" and parsed.get("message"):
+            print(f"[{ws.nickname}] {parsed["message"]}")
+            await self.__ws_handler.broadcast_msg("message", f"[{ws.nickname}] {parsed['message']}")
+
+
+    def __close_handler(self, ws: ServerConnection):
+        self.__ws_handler.remove_client(ws)
+        print("client disconencted")
+
+
+    async def start(self):
+        await self.__ws_handler.start()
