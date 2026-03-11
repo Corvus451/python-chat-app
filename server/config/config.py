@@ -2,7 +2,7 @@ from configparser import ConfigParser
 
 class Config:
     def __init__(self, file: str):
-        self.__file = file
+        self.__file: str = file
         self.__parser = ConfigParser()
         if not self.__parser.read(file):
             self.__create_default_config()
@@ -19,8 +19,11 @@ class Config:
         self.save()
 
 
-    def cfg_set(self, section: str, key: str, value: str):
-        self.__parser[section][key] = value
+    def cfg_set(self, key: str, value: str):
+        self.__parser["SERVER"][key] = value
+
+    def cfg_get(self, key: str):
+        return self.__parser["SERVER"].get(key)
 
 
     def save(self):
