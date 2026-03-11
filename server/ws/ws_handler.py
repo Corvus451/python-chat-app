@@ -4,11 +4,13 @@ import websockets
 from websockets.asyncio.server import serve
 from websockets.asyncio.server import ServerConnection
 from websockets import exceptions
+from config.config import Config
 
 
 
 class Ws_handler:
-    def __init__(self):
+    def __init__(self, config: Config):
+        self.__config = config
         self.__clients: set[websockets.ServerConnection] = set()
         self.__join_handler = None
         self.__on_msg = None
@@ -65,5 +67,5 @@ class Ws_handler:
             print("handlers not set")
             return
         
-        async with serve(self.__join_handler, "localhost", 8765) as server:
+        async with serve(self.__join_handler, self.__config.cfg_get("host"), self.__config.cfg_get("port")) as server:
             await server.serve_forever()
