@@ -14,49 +14,74 @@ class WsHandler:
         self.__is_connecting: bool = False
         self.__is_disconnecting: bool = False
 
+
     def is_connected(self) -> bool:
         return self.__ws and self.__ws.state == websockets.State.OPEN
     
+
+    def set_ws(self, ws: websockets.ClientConnection):
+        if not self.__ws:
+            self.__ws = ws
+            return True
+
+        return False
+    
+
+    def clear_ws(self):
+        if self.__ws:
+            self.__ws = None
+            return True
+        
+        return False
+    
+    
     # def is_connecting(self) -> bool:
     #     return self.__ws and self.__ws.state == websockets.State.CONNECTING
+
     
     # def is_disconnecting(self) -> bool:
     #     return self.__ws and self.__ws.state == websockets.State.CLOSING
-    
-    async def connect(self, address: str, nickname: str):
-        if self.__is_connecting or self.is_connected():
-            return False
-        
-        async def receive(ws: websockets.ClientConnection):
 
+
+    async def get_msg(self):
+        if self.__ws:
             try:
-                async for msg in ws:
-                    self.__on_message(msg)
-
+                msg = await self.__ws.recv()
+                return msg
+            
             except Exception as e:
                 self.__logger.log(e)
 
-            finally:
-                self.__on_close()
-                self.__ws = None
+        return None
 
+    
+    async def listen(self):
+        if not self.is_connected():
+            return
+        
+        try:
+            async for msg in self.__ws:
+                self.__on_message(msg)
+
+        except Exception as e:
+            self.__logger.log(e)
+
+        finally:
+            self.__on_close()
+            self.clear_ws()
+
+
+    async def connect(self, address: str):
+        if self.__is_connecting or self.is_connected():
+            return False
+        
         try:
             self.__is_connecting = True
 
             self.__ui.add_message(f"connecting to {address}")
 
             connection = await websockets.connect(f"ws://{address}")
-            self.__ws = connection
-
-            connect_msg = json.dumps({
-                "type": "join",
-                "nickname": nickname
-            })
-            await self.__ws.send(connect_msg)
-            successful = await self.__ws.recv()
-            self.__on_message(successful)
-            
-            asyncio.create_task(receive(self.__ws))
+            self.set_ws(connection)
 
             self.__is_connecting = False
 
@@ -64,9 +89,11 @@ class WsHandler:
         
         except Exception as e:
             self.__is_connecting = False
+            self.clear_ws()
             self.__logger.log(e)
             self.__ui.add_message("connection failed")
             return False
+        
         
     async def disconnect(self):
         if self.__is_disconnecting:
@@ -79,16 +106,11 @@ class WsHandler:
 
         self.__is_disconnecting = False
 
-    def __create_message(self, text: str):
-        return json.dumps({
-        "type": "message",
-        "message": text
-    })
 
     async def send_message(self, msg: str):
         if msg and self.is_connected():
             try:
-                await self.__ws.send(self.__create_message(msg))
+                await self.__ws.send(msg)
                 return True
             except Exception as e:
                 self.__logger.log(e)

@@ -6,7 +6,7 @@ async def cmd_connect(args, app):
     """(/connect <address> <nickname>) connect to a server"""
     address = args[1]
     nickname = args[2]
-    await app.ws_handler.connect(address, nickname)
+    await app.connect(address, nickname)
 
 async def cmd_disconnect(args, app):
     """disconnect from a server"""
