@@ -5,14 +5,19 @@ from utility.logger import Logger
 from ui.ui import UI
 
 class WsHandler:
-    def __init__(self, on_message, on_close, logger: Logger, ui: UI):
+    def __init__(self, logger: Logger, ui: UI):
         self.__ws: websockets.ClientConnection = None
-        self.__on_message = on_message
-        self.__on_close = on_close
+        self.__on_message = None
+        self.__on_close = None
         self.__logger = logger
         self.__ui = ui
         self.__is_connecting: bool = False
         self.__is_disconnecting: bool = False
+
+
+    def set_handlers(self, on_message, on_close):
+        self.__on_message = on_message
+        self.__on_close = on_close
 
 
     def is_connected(self) -> bool:
@@ -73,6 +78,10 @@ class WsHandler:
 
     async def connect(self, address: str):
         if self.__is_connecting or self.is_connected():
+            return False
+        
+        if not self.__on_message or not self.__on_close:
+            self.__logger.log("Connection canceled because handlers are not set")
             return False
         
         try:

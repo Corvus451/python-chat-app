@@ -10,16 +10,18 @@ from command_registry.command_registry import Command_registry
 
 
 class App:
-    def __init__(self):
-        self.__logger = Logger("testlog.txt")
-        self.ui = UI()
-        self.ws_handler = WsHandler(self.msg_handler, self.close_handler, self.__logger, self.ui)
-        self.__key_binder = Key_binder(self.ui, self.ws_handler)
+    def __init__(self, logger: Logger, ws_handler: WsHandler, ui: UI, key_binder: Key_binder, command_registry: Command_registry, commands):
+        self.__logger = logger
+        self.ws_handler = ws_handler
+        self.ui = ui
+        self.__key_binder = key_binder
+        self.command_registry = command_registry
 
-        self.command_registry = Command_registry()
-        self.command_registry.register_commands(commands)
-        self.ui.set_keybindings(self.__key_binder.bind_keys())
         self.ui.set_input_handler(self.input_handler)
+        self.ui.set_keybindings(self.__key_binder.bind_keys())
+        self.ws_handler.set_handlers(self.msg_handler, self.close_handler)
+        self.command_registry.register_commands(commands)
+
 
     def msg_handler(self, msg: str):
         parsed: dict = json.loads(msg)
@@ -68,12 +70,3 @@ class App:
 
     async def run(self):
         await self.ui.run()
-
-async def main():
-    
-    app = App()
-    await app.run()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
